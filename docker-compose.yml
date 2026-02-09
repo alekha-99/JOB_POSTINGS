@@ -47,6 +47,8 @@ services:
       # Dashboard credentials
       WHATSAPP_SWAGGER_USERNAME: "admin"
       WHATSAPP_SWAGGER_PASSWORD: "password"
+      WAHA_DASHBOARD_USERNAME: "admin"
+      WAHA_DASHBOARD_PASSWORD: "password"
       WAHA_DASHBOARD_ENABLED: "true"
       WAHA_SWAGGER_ENABLED: "true"
     volumes:

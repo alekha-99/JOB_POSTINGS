@@ -64,7 +64,6 @@ services:
         condition: service_started
     environment:
       # Override localhost with container names
-      - DATABASE_URL=postgresql://jobuser:jobpass123@postgres:5432/jobdb
       - WAHA_API_URL=http://waha:3000
     env_file:
       - .env

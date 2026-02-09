@@ -1,0 +1,67 @@
+{
+  "name": "job-scraper-system",
+  "version": "1.0.0",
+  "description": "Automated job scraping system for IT positions in the USA",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "test:connection": "tsx src/scripts/testConnection.ts",
+    "test:utils": "tsx src/scripts/testUtilities.ts",
+    "test:company": "tsx src/scripts/testSingleCompany.ts",
+    "test:summary": "tsx src/scripts/testExtractSummary.ts",
+    "test:twilio": "tsx src/scripts/testTwilio.ts",
+    "send:digest": "tsx src/scripts/sendDigest.ts",
+    "scrape:manual": "tsx src/scripts/manualScrape.ts",
+    "pm2:start": "npx pm2 start ecosystem.config.cjs",
+    "pm2:stop": "npx pm2 stop job-scraper",
+    "pm2:restart": "npx pm2 restart job-scraper",
+    "pm2:logs": "npx pm2 logs job-scraper",
+    "pm2:status": "npx pm2 status",
+    "add:company": "npx tsx src/scripts/addCompany.ts",
+    "lint": "eslint src/**/*.ts",
+    "clean": "rimraf dist"
+  },
+  "keywords": [
+    "job-scraper",
+    "greenhouse",
+    "lever",
+    "workday",
+    "typescript",
+    "playwright"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.3",
+    "@prisma/client": "^5.22.0",
+    "axios": "^1.6.7",
+    "cheerio": "^1.0.0-rc.12",
+    "date-fns": "^3.3.1",
+    "dotenv": "^16.4.1",
+    "node-cron": "^3.0.3",
+    "playwright": "^1.41.2",
+    "twilio": "^5.12.0",
+    "winston": "^3.11.0",
+    "winston-daily-rotate-file": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.16",
+    "@types/node-cron": "^3.0.11",
+    "prisma": "^5.10.0",
+    "rimraf": "^5.0.5",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "xlsx": "^0.18.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

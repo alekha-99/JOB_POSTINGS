@@ -1,0 +1,12 @@
+🧪 Testing Oracle Scraper for Verisk...
+[2026-02-01 23:07:17] [32minfo[39m: [32m[ORACLE] Scraping Verisk...[39m {"service":"job-scraper"}
+[DEBUG] Final Params: {"onlyData":true,"expand":"requisitionList","limit":25,"offset":0,"finder":"findReqs;siteNumber=CX"}
+[DEBUG] Items Length: 1
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+[DEBUG] First Item Keys: ["SearchId","Keyword","CorrectedKeyword","UseExactKeywordFlag","SuggestedKeyword","ExecuteSpellCheckFlag","Location","LocationId","Radius","RadiusUnit","SelectedTitlesFacet","SelectedCategoriesFacet","SelectedPostingDatesFacet","SelectedLocationsFacet","LastSelectedFacet","Facets","Offset","Limit","SortBy","TotalJobsCount","Latitude","Longitude","SiteNumber","JobFamilyId","PostingStartDate","PostingEndDate","SelectedWorkLocationsFacet","RequisitionId","CandidateNumber","WorkLocationZipCode","WorkLocationCountryCode","SelectedFlexFieldsFacets","OrganizationId","SelectedOrganizationsFacet","UserTargetFacetName","UserTargetFacetInputTerm","HotJobFlag","WorkplaceType","SelectedWorkplaceTypesFacet","BotQRShortCode","requisitionList","categoriesFacet","locationsFacet","postingDatesFacet","titlesFacet","workLocationsFacet","flexFieldsFacet","organizationsFacet","workplaceTypesFacet"]
+[DEBUG] Full Item: {"SearchId":1,"Keyword":null,"CorrectedKeyword":null,"UseExactKeywordFlag":false,"SuggestedKeyword":null,"ExecuteSpellCheckFlag":true,"Location":null,"LocationId":null,"Radius":0,"RadiusUnit":"MI","Se
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+[2026-02-01 23:07:17] [32minfo[39m: [32m[ORACLE] Found 1 jobs for Verisk[39m {"service":"job-scraper"}
+
+✅ Scrape complete! Found 0 jobs.
+⚠️ No jobs found. The API might be protected or require different parameters.

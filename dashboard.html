@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Scraper - WhatsApp Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+
+    <div class="bg-white p-8 rounded-lg shadow-xl max-w-lg w-full text-center">
+        <h1 class="text-2xl font-bold mb-4 text-green-600">WhatsApp Connection</h1>
+
+        <div id="status" class="mb-4 font-semibold text-gray-700">Checking status...</div>
+
+        <div id="qr-container"
+            class="flex flex-col justify-center mb-6 min-h-[264px] items-center bg-gray-50 rounded-lg p-4">
+            <div class="loader"></div>
+            <p class="mt-4 text-gray-500 text-sm">Waiting for service...</p>
+        </div>
+
+        <div id="groups-container" class="hidden text-left">
+            <h3 class="font-bold text-gray-700 mb-2">📢 Available Groups</h3>
+            <div id="groups-list" class="bg-gray-50 p-2 rounded h-40 overflow-y-auto text-sm border"></div>
+        </div>
+
+        <p id="instructions" class="text-sm text-gray-500 mb-6">
+            1. Open WhatsApp on your phone<br>
+            2. Menu > Linked Devices > Link a Device<br>
+            3. Scan the QR code above
+        </p>
+
+        <div id="logs" class="text-xs text-left bg-gray-900 text-green-400 p-3 rounded h-32 overflow-y-auto font-mono">
+            <div>> Initializing dashboard...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3003';
+        const SESSION_NAME = 'default';
+        const API_KEY = 'secret123';
+
+        const statusEl = document.getElementById('status');
+        const qrContainer = document.getElementById('qr-container');
+        const logsEl = document.getElementById('logs');
+        const groupsContainer = document.getElementById('groups-container');
+        const groupsList = document.getElementById('groups-list');
+        const instructions = document.getElementById('instructions');
+
+        let refreshInterval;
+        let isCreating = false;
+
+        function log(msg) {
+            const div = document.createElement('div');
+            const time = new Date().toLocaleTimeString();
+            div.innerText = `[${time}] > ${msg}`;
+            logsEl.insertBefore(div, logsEl.firstChild);
+        }
+
+        async function api(endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                headers: {
+                    'X-Api-Key': API_KEY,
+                    'Content-Type': 'application/json'
+                }
+            };
+            if (body) options.body = JSON.stringify(body);
+
+            const res = await fetch(`${API_URL}${endpoint}`, options);
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`API Error ${res.status}: ${text}`);
+            }
+            return method === 'GET' ? res.json() : res.text(); // Some endpoints return text
+        }
+
+        async function updateStatus() {
+            try {
+                // Check Session Status
+                const sessions = await api('/api/sessions?all=true');
+                const session = sessions.find(s => s.name === SESSION_NAME);
+
+                if (!session) {
+                    if (!isCreating) {
+                        statusEl.innerText = "Status: Creating session...";
+                        log('Session missing. Creating...');
+                        isCreating = true;
+                        createSession();
+                    }
+                    return;
+                }
+
+                statusEl.innerText = `Status: ${session.status}`;
+
+                if (session.status === 'STOPPED') {
+                    statusEl.innerText = "Status: Starting...";
+                    log('Session stopped. Starting...');
+                    await api(`/api/sessions/${SESSION_NAME}/start`, 'POST');
+                } else if (session.status === 'SCAN_QR_CODE') {
+                    qrContainer.innerHTML = ''; // Clear loader
+                    await fetchQR();
+                    instructions.classList.remove('hidden');
+                    groupsContainer.classList.add('hidden');
+                } else if (session.status === 'WORKING') {
+                    qrContainer.innerHTML = '<div class="text-green-500 text-6xl">✅</div><div class="mt-2 font-bold">Connected!</div>';
+                    instructions.classList.add('hidden');
+                    if (groupsContainer.classList.contains('hidden')) {
+                        log('WhatsApp connected! Fetching groups...');
+                        groupsContainer.classList.remove('hidden');
+                        fetchGroups();
+                        clearInterval(refreshInterval); // Stop polling fast
+                        refreshInterval = setInterval(updateStatus, 10000); // Poll slower
+                    }
+                } else {
+                    qrContainer.innerHTML = `<div class="text-yellow-500 font-bold">${session.status}</div><p class="text-sm">Please wait...</p>`;
+                }
+
+            } catch (error) {
+                statusEl.innerText = "Connection Error";
+                statusEl.classList.add('text-red-500');
+                log(error.message);
+                if (error.message.includes('Failed to fetch')) {
+                    log('Make sure Docker container is running on port 3003');
+                }
+            }
+        }
+
+        async function createSession() {
+            try {
+                await api('/api/sessions', 'POST', {
+                    name: SESSION_NAME,
+                    config: { proxy: null }
+                });
+                log('Session created.');
+                isCreating = false;
+            } catch (e) {
+                log(`Create failed: ${e.message}`);
+                isCreating = false;
+            }
+        }
+
+        async function fetchQR() {
+            const endpoints = [
+                `/api/sessions/${SESSION_NAME}/auth/qr?format=image`,
+                `/api/${SESSION_NAME}/auth/qr?format=image`,
+                `/api/sessions/${SESSION_NAME}/screenshot?format=image`,
+                `/api/${SESSION_NAME}/screenshot?format=image`
+            ];
+
+            for (const endpoint of endpoints) {
+                try {
+                    log(`Trying QR source: ${endpoint}`);
+                    const res = await fetch(`${API_URL}${endpoint}`, {
+                        headers: { 'X-Api-Key': API_KEY }
+                    });
+
+                    if (!res.ok) {
+                        log(`Failed ${endpoint}: ${res.status}`);
+                        continue;
+                    }
+
+                    const blob = await res.blob();
+                    if (blob.size < 500) { // Error JSON is usually small
+                        log(`Blob too small (${blob.size}b) from ${endpoint}`);
+                        continue;
+                    }
+
+                    const url = URL.createObjectURL(blob);
+                    qrContainer.innerHTML = `<img src="${url}" alt="Scan QR Code" class="w-64 h-64 border-4 border-white shadow-lg">`;
+                    log(`Success! Loaded QR from ${endpoint}`);
+                    return; // Exit on success
+                } catch (e) {
+                    log(`Error fetching ${endpoint}: ${e.message}`);
+                }
+            }
+
+            // If all failed
+            qrContainer.innerHTML = '<div class="loader"></div><div class="mt-2 text-red-500">QR Failed. Check logs.</div>';
+        }
+
+        async function fetchGroups() {
+            try {
+                const groups = await api(`/api/${SESSION_NAME}/groups`);
+                groupsList.innerHTML = '';
+                if (groups.length === 0) {
+                    groupsList.innerHTML = '<div class="p-2 text-gray-500">No groups found.</div>';
+                    return;
+                }
+                groups.forEach(g => {
+                    const div = document.createElement('div');
+                    div.className = "p-2 hover:bg-gray-200 border-b last:border-0 cursor-pointer flex justify-between";
+                    div.innerHTML = `<span>${g.name || 'Unnamed'}</span> <span class="text-xs text-gray-500">${g.id._serialized}</span>`;
+                    div.onclick = () => {
+                        navigator.clipboard.writeText(g.id._serialized);
+                        log(`Copied ID: ${g.id._serialized}`);
+                        alert(`Copied Group ID: ${g.id._serialized}`);
+                    };
+                    groupsList.appendChild(div);
+                });
+            } catch (e) {
+                log(`Failed to fetch groups: ${e.message}`);
+            }
+        }
+
+        // Start loop
+        updateStatus();
+        refreshInterval = setInterval(updateStatus, 3000);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,75 @@
+# Multi-Server Job Scraper Setup
+# 
+# This configuration enables horizontal scaling with Redis queue.
+# Start with: docker-compose -f docker-compose.multi.yml up -d --scale worker=3
+
+version: '3.8'
+
+services:
+  # Redis for job queue
+  redis:
+    image: redis:7-alpine
+    container_name: job-scraper-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Scheduler node (runs cron, pushes to queue)
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: job-scraper-scheduler
+    environment:
+      - NODE_ENV=production
+      - MULTI_SERVER_MODE=redis
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=${DATABASE_URL}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_WHATSAPP_FROM=${TWILIO_WHATSAPP_FROM}
+      - TWILIO_WHATSAPP_TO=${TWILIO_WHATSAPP_TO}
+      - ENABLE_WHATSAPP=${ENABLE_WHATSAPP:-false}
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: ["node", "--import", "tsx", "src/index.ts"]
+    restart: unless-stopped
+
+  # Worker nodes (scalable)
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - MULTI_SERVER_MODE=redis
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=${DATABASE_URL}
+      - WORKER_CONCURRENCY=3
+      - HEADLESS=true
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: ["node", "--import", "tsx", "src/queue/worker.ts"]
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          memory: 2G
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+
+networks:
+  default:
+    name: job-scraper-network

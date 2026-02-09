@@ -1,0 +1,137 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum JobSource {
+  GREENHOUSE
+  LEVER
+  WORKDAY
+  ICIMS
+  ORACLE
+}
+
+enum ScraperStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+  PARTIAL
+}
+
+// ============================================================================
+// MODELS
+// ============================================================================
+
+/// Represents a job posting scraped from an ATS platform
+model Job {
+  id              String      @id @default(cuid())
+  
+  // Identifiers
+  externalId      String      // Job ID from source ATS
+  sourceJobId     String      @unique // Format: "source_company_externalId"
+  
+  // Basic Info
+  title           String
+  company         String
+  companySlug     String
+  location        String
+  locationType    String?     // Remote, Hybrid, Onsite
+  
+  // Details
+  description     String      @db.Text
+  shortSummary    String?     @db.Text  // First 50 words of description
+  requirements    String?     @db.Text
+  url             String
+  applyUrl        String?
+  
+  // Classification
+  source          JobSource   // GREENHOUSE, LEVER, WORKDAY
+  isITJob         Boolean     @default(false)
+  isUSA           Boolean     @default(false)
+  category        String?     // Software Engineering, DevOps, etc.
+  
+  // Dates
+  postedDate      DateTime?   // When job was originally posted
+  scrapedAt       DateTime    @default(now())
+  
+  // WhatsApp tracking
+  sentToWhatsApp  Boolean     @default(false)
+  whatsAppSentAt  DateTime?
+  
+  // Metadata
+  rawData         Json?       // Store original response data
+  
+  // Indexes for performance
+  @@index([source, isITJob, isUSA, postedDate])
+  @@index([companySlug])
+  @@index([scrapedAt])
+  @@index([postedDate])
+  @@index([sentToWhatsApp, isITJob, isUSA])  // For WhatsApp queries
+}
+
+/// Represents a company to scrape jobs from
+model Company {
+  id              String      @id @default(cuid())
+  name            String
+  slug            String      @unique
+  source          JobSource
+  careersUrl      String
+  apiEndpoint     String?
+  enabled         Boolean     @default(true)
+  priority        Int         @default(1)
+  lastScrapedAt   DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([enabled, priority])
+  @@index([source])
+}
+
+/// Tracks individual scraper run executions
+model ScraperRun {
+  id              String          @id @default(cuid())
+  companySlug     String
+  source          JobSource
+  status          ScraperStatus   // RUNNING, SUCCESS, FAILED, PARTIAL
+  jobsFound       Int             @default(0)
+  jobsSaved       Int             @default(0)
+  error           String?         @db.Text
+  startedAt       DateTime        @default(now())
+  completedAt     DateTime?
+  
+  @@index([companySlug, startedAt])
+  @@index([status])
+  @@index([startedAt])
+}
+
+/// Tracks WhatsApp messages sent
+model WhatsAppMessage {
+  id              String      @id @default(cuid())
+  
+  messageType     String      // "digest", "alert", "test"
+  jobCount        Int         @default(0)
+  jobIds          String[]    // Array of job IDs included
+  
+  messageBody     String      @db.Text
+  twilioSid       String?     // Twilio message ID
+  
+  status          String      @default("pending") // pending, sent, delivered, failed
+  sentAt          DateTime    @default(now())
+  deliveredAt     DateTime?
+  
+  error           String?     @db.Text
+  
+  @@index([status])
+  @@index([sentAt])
+}
